@@ -29,6 +29,15 @@ exports.register = async (req, res) => {
       password: hashedPassword,
     });
 
+    await publishToQueue("user_created", {
+      email: user.email,
+      role: user.role,
+      fullname: {
+        firstName: user.name,
+        lastName: "",
+      },
+    });
+
     const token = generateToken(user);
 
     res.status(201).json({
@@ -39,7 +48,6 @@ exports.register = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -66,6 +74,7 @@ exports.login = async (req, res) => {
 };
 
 
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -78,20 +87,21 @@ exports.forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
 
     user.passwordResetToken = resetToken;
-    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 min
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    const message = {
-      type: "FORGOT_PASSWORD",
+    
+    await publishToQueue("password_reset_requested", {
       email: user.email,
-      name: user.name,
+      fullname: {
+        firstName: user.name,
+        lastName: "",
+      },
       resetToken,
-    };
-
-    await publishToQueue("notification_queue", message);
+    });
 
     res.status(200).json({
-      message: "Password reset link sent to notification service",
+      message: "Reset email sent",
     });
 
   } catch (err) {
