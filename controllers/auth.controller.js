@@ -14,7 +14,7 @@ const generateToken = (user) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password,role } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -27,6 +27,7 @@ exports.register = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+	  role:role
     });
 
     await publishToQueue("user_created", {
