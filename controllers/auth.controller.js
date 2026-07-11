@@ -220,3 +220,151 @@ exports.logout = async (req, res) => {
 
   }
 };
+
+
+
+exports.getTotalEarnings = async (req, res) => {
+  try {
+    const sellerId = req.user.id;
+
+    const seller = await User.findById(sellerId);
+
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller not found",
+      });
+    }
+
+    const sellerOrders = seller.sellerOrders.filter(
+      (item) =>
+        item.sellerId?.toString() === sellerId.toString() ||
+        item.sellerId === "SYSTEM_SEED"
+    );
+
+    if (!sellerOrders.length) {
+      return res.status(200).json({
+        success: true,
+        totalOrders: 0,
+        totalProductsSold: 0,
+        totalEarnings: 0,
+      });
+    }
+
+    const orders = sellerOrders.flatMap(
+      (item) => item.orders
+    );
+
+    const totalOrders = orders.length;
+
+    const totalProductsSold = orders.reduce(
+      (sum, order) => sum + order.quantity,
+      0
+    );
+
+    const totalEarnings = orders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    );
+
+    return res.status(200).json({
+      success: true,
+      totalOrders,
+      totalProductsSold,
+      totalEarnings,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getProductWiseEarnings = async (
+  req,
+  res
+) => {
+  try {
+    const sellerId = req.user.id;
+
+    const seller = await User.findById(sellerId);
+
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller not found",
+      });
+    }
+
+    const sellerOrders = seller.sellerOrders.filter(
+      (item) =>
+        item.sellerId?.toString() === sellerId.toString() ||
+        item.sellerId === "SYSTEM_SEED"
+    );
+
+    if (!sellerOrders.length) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const orders = sellerOrders.flatMap(
+      (item) => item.orders
+    );
+
+    const earningsMap = {};
+
+    orders.forEach((order) => {
+      const productId =
+        order.productId.toString();
+
+      if (!earningsMap[productId]) {
+        earningsMap[productId] = {
+          productId: order.productId,
+          productName: order.productName,
+          productImage: order.productImage,
+          totalSold: 0,
+          totalOrders: 0,
+          totalEarnings: 0,
+        };
+      }
+
+      earningsMap[
+        productId
+      ].totalSold += order.quantity;
+
+      earningsMap[
+        productId
+      ].totalOrders += 1;
+
+      earningsMap[
+        productId
+      ].totalEarnings +=
+        order.totalAmount;
+    });
+
+    const data = Object.values(
+      earningsMap
+    ).sort(
+      (a, b) =>
+        b.totalEarnings -
+        a.totalEarnings
+    );
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
