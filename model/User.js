@@ -16,11 +16,10 @@ const orderItemSchema =
             .ObjectId,
       },
 
-      productName: {
+      name: {
         type: String,
       },
-
-      productImage: {
+      image: {
         type: String,
       },
 

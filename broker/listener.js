@@ -1,108 +1,148 @@
-const { subscribeToQueue } =
-  require("./rabbit");
+const amqp = require("amqplib");
 
-const User =
-  require("../models/User");
+const User = require("../model/User");
 
 require("dotenv").config();
 
-function startUserListener() {
+async function startUserListener() {
+  try {
+    const connection = await amqp.connect(
+      process.env.RABBITMQ_URI
+    );
 
-  subscribeToQueue(
-    "earning_events",
+    const channel =
+      await connection.createChannel();
 
-    async (msg) => {
+   const q= await channel.assertQueue(
+      "earning_events",
+      {
+        durable: true,
+      }
+    );
+console.log(q);
+    console.log(
+      "Listening to earning_events..."
+    );
 
-      const {
+    channel.consume(
+      "earning_events",
+      async (msg) => {
+		console.log("checkk",msg)
+        if (!msg) return;
 
-        type,
+        try {
+          const data = JSON.parse(
+            msg.content.toString()
+          );
+        console.log("allData",data)
+          const {
+            type,
+            orderId,
+            productId,
+            name,
+            image,
+            sellerId,
+            quantity,
+            price,
+            totalAmount,
+            paymentStatus,
+            orderStatus,
+            shippingAddress,
+            orderedAt,
+          } = data;
 
-        orderId,
-
-        productId,
-
-        productName,
-
-        productImage,
-
-        sellerId,
-
-        quantity,
-
-        price,
-
-        totalAmount,
-
-        paymentStatus,
-
-        orderStatus,
-
-        shippingAddress,
-
-        orderedAt,
-
-      } = msg;
-
-      try {
-
-        if (
-          type ===
-          "ADD_EARNING"
-        ) {
-
-          const seller =
-            await User.findOne({
-              _id: sellerId,
-            });
-
-          if (!seller) {
+          if (
+            type !==
+            "ADD_EARNING"
+          ) {
+            channel.ack(msg);
             return;
           }
 
-          seller.orders.push({
+          console.log(
+            data,
+            "hello"
+          );
 
-            orderId,
+          const seller =
+            await User.findById(
+              sellerId
+            );
 
-            productId,
+          if (!seller) {
+            channel.ack(msg);
+            return;
+          }
+const existingSellerOrder = seller.sellerOrders.find(
+  (item) => item.sellerId.toString() === sellerId.toString()
+);
 
-            productName,
+if (existingSellerOrder) {
+  existingSellerOrder.orders.push({
+    orderId,
+    productId,
+    name,
+    image,
+    sellerId,
+    quantity,
+    price,
+    totalAmount,
+    paymentStatus,
+    orderStatus,
+    shippingAddress,
+    orderedAt,
+  });
+} else {
+  seller.sellerOrders.push({
+    sellerId,
+    orders: [
+      {
+        orderId,
+        productId,
+        name,
+        image,
+        sellerId,
+        quantity,
+        price,
+        totalAmount,
+        paymentStatus,
+        orderStatus,
+        shippingAddress,
+        orderedAt,
+      },
+    ],
+  });
+}
 
-            productImage,
-
-            sellerId,
-
-            quantity,
-
-            price,
-
-            totalAmount,
-
-            paymentStatus,
-
-            orderStatus,
-
-            shippingAddress,
-
-            orderedAt,
-          });
-
-          await seller.save();
+await seller.save();
 
           console.log(
             `Order added for seller ${sellerId}`
           );
+
+          channel.ack(msg);
+        } catch (error) {
+          console.error(
+            "User order update failed:",
+            error.message
+          );
+
+          channel.nack(
+            msg,
+            false,
+            false
+          );
         }
-
-      } catch (error) {
-
-        console.error(
-          "User order update failed:",
-          error.message
-        );
       }
-    }
-  );
+    );
+  } catch (error) {
+    console.error(
+      "RabbitMQ Listener Error:",
+      error.message
+    );
+  }
 }
 
-module.exports =
-  startUserListener;
+module.exports = {
+  startUserListener,
+};

@@ -35,8 +35,9 @@ exports.verifyToken = (req, res, next) => {
 exports.isAdmin = (req, res, next) => {
 
   try {
+	 console.log(req.user)
 
-    if (req.user.role !== "ADMIN") {
+    if (req.user.role !== "admin") {
 
       return res.status(403).json({
         message: "Admin only",

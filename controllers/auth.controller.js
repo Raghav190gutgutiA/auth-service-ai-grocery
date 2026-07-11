@@ -288,10 +288,11 @@ exports.getProductWiseEarnings = async (
   res
 ) => {
   try {
-    const sellerId = req.user.id;
-
+    const sellerId = req.user.id ;
+   
     const seller = await User.findById(sellerId);
-
+	const sellerFilter = await User.findById(process.env.SYSTEM_SEED_USER_ID)
+   console.log("WDQQ",seller)
     if (!seller) {
       return res.status(404).json({
         success: false,
@@ -302,7 +303,7 @@ exports.getProductWiseEarnings = async (
     const sellerOrders = seller.sellerOrders.filter(
       (item) =>
         item.sellerId?.toString() === sellerId.toString() ||
-        item.sellerId === "SYSTEM_SEED"
+        item.sellerId?.toString() === process.env.SYSTEM_SEED_USER_ID?.toString()
     );
 
     if (!sellerOrders.length) {
@@ -312,52 +313,11 @@ exports.getProductWiseEarnings = async (
       });
     }
 
-    const orders = sellerOrders.flatMap(
-      (item) => item.orders
-    );
-
-    const earningsMap = {};
-
-    orders.forEach((order) => {
-      const productId =
-        order.productId.toString();
-
-      if (!earningsMap[productId]) {
-        earningsMap[productId] = {
-          productId: order.productId,
-          productName: order.productName,
-          productImage: order.productImage,
-          totalSold: 0,
-          totalOrders: 0,
-          totalEarnings: 0,
-        };
-      }
-
-      earningsMap[
-        productId
-      ].totalSold += order.quantity;
-
-      earningsMap[
-        productId
-      ].totalOrders += 1;
-
-      earningsMap[
-        productId
-      ].totalEarnings +=
-        order.totalAmount;
-    });
-
-    const data = Object.values(
-      earningsMap
-    ).sort(
-      (a, b) =>
-        b.totalEarnings -
-        a.totalEarnings
-    );
+  
 
     return res.status(200).json({
       success: true,
-      data,
+      data:sellerOrders,
     });
   } catch (error) {
     console.log(error);
