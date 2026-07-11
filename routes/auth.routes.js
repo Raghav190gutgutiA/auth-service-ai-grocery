@@ -21,6 +21,6 @@ router.post("/reset-password", resetPassword);
 router.post("/forgot-password", forgotPassword);
 
 router.get("/total-earning",verifyToken,isAdmin,getTotalEarnings);
-router.get("/total-earning",verifyToken,isAdmin,getProductWiseEarnings);
+router.get("/product-wise-earning",verifyToken,isAdmin,getProductWiseEarnings);
 // router.post("/reset-password", resetPassword);
 module.exports = router;
