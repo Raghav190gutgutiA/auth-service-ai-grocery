@@ -1,59 +1,108 @@
-// const { subscribeToQueue } = require("./rabbit");
-// const User = require("../models/User");
-// require("dotenv").config();
+const { subscribeToQueue } =
+  require("./rabbit");
 
-// function startUserListener() {
-//   subscribeToQueue("competition.won", async (msg) => {
-//     const {
-//       userId,
-//       competitionId,
-//       competitionName,
-//       prizeAmount,
-//       rank,
-//     } = msg;
+const User =
+  require("../models/User");
 
-//     try {
-//       await User.findByIdAndUpdate(
-//         userId,
-//         {
-//           $push: {
-//             competitionsWon: {
-//               competitionId,
-//               competitionName,
-//               prizeAmount,
-//               wonAt: new Date(),
-//               rank,
-//             },
-//           },
-//           $inc: {
-//             totalEarnings: prizeAmount || 0,
-//           },
-//         },
-//         { new: true }
-//       );
-//     } catch (error) {
-//       console.error("User win update failed:", error.message);
-//     }
-//   });
+require("dotenv").config();
 
-//   subscribeToQueue("bid_accepted", async (msg) => {
-//     const { freelancerId, amount } = msg;
+function startUserListener() {
 
-//     try {
-//       await User.findByIdAndUpdate(
-//         freelancerId,
-//         {
-//           $inc: {
-//             bidsAccepted: 1,
-//             totalEarnings: amount || 0,
-//           },
-//         },
-//         { new: true }
-//       );
-//     } catch (error) {
-//       console.error("User bid update failed:", error.message);
-//     }
-//   });
-// }
+  subscribeToQueue(
+    "earning_events",
 
-// module.exports = startUserListener;
+    async (msg) => {
+
+      const {
+
+        type,
+
+        orderId,
+
+        productId,
+
+        productName,
+
+        productImage,
+
+        sellerId,
+
+        quantity,
+
+        price,
+
+        totalAmount,
+
+        paymentStatus,
+
+        orderStatus,
+
+        shippingAddress,
+
+        orderedAt,
+
+      } = msg;
+
+      try {
+
+        if (
+          type ===
+          "ADD_EARNING"
+        ) {
+
+          const seller =
+            await User.findOne({
+              _id: sellerId,
+            });
+
+          if (!seller) {
+            return;
+          }
+
+          seller.orders.push({
+
+            orderId,
+
+            productId,
+
+            productName,
+
+            productImage,
+
+            sellerId,
+
+            quantity,
+
+            price,
+
+            totalAmount,
+
+            paymentStatus,
+
+            orderStatus,
+
+            shippingAddress,
+
+            orderedAt,
+          });
+
+          await seller.save();
+
+          console.log(
+            `Order added for seller ${sellerId}`
+          );
+        }
+
+      } catch (error) {
+
+        console.error(
+          "User order update failed:",
+          error.message
+        );
+      }
+    }
+  );
+}
+
+module.exports =
+  startUserListener;
